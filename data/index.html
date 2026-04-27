@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Medição de Torque</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative; /* necessário para posicionar a bateria */
+        }
+        h1 {
+            color: #0066cc;
+            margin-bottom: 5px;
+        }
+        p {
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .header-section {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .logo-container {
+            height: auto;
+            width: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .logo-container img {
+            height: 100px;
+            width: auto;
+        }
+        .header-text {
+            flex-grow: 1;
+            text-align: center;
+        }
+        .dashboard-container {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: flex-start;
+            width: 100%;
+            max-width: 1200px;
+        }
+        .chart-section {
+            flex-grow: 1;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            min-width: 300px;
+        }
+        .info-section {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            margin: 10px;
+            min-width: 250px;
+            flex-shrink: 0;
+        }
+        .info-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        .info-box h2 {
+            margin-top: 0;
+            color: #0066cc;
+            font-size: 1.2em;
+        }
+        .info-box .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        .data-table-section {
+            width: 100%;
+            max-width: 1200px;
+            margin-top: 20px;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }
+        .data-table-section h2 {
+            color: #0066cc;
+            text-align: center;
+        }
+        .data-table-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .data-table-controls button {
+            padding: 10px 20px;
+            font-size: 1em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+        }
+        .data-table-controls button:hover {
+            background-color: #0056b3;
+        }
+        #dataTable {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+        #dataTable th, #dataTable td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+        #dataTable th {
+            background-color: #f2f2f2;
+            color: #333;
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        .delete-btn {
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            font-size: 0.8em;
+            cursor: pointer;
+            text-align: center;
+        }
+        .delete-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* ================== BATERIA ================== */
+        .battery-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            font-size: 1em;
+            z-index: 10;
+        }
+        .battery-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .battery-icon {
+            width: 52px;
+            height: 24px;
+            border: 3px solid #333;
+            border-radius: 4px;
+            position: relative;
+            background: #fff;
+        }
+        .battery-icon::after {
+            content: "";
+            position: absolute;
+            right: -8px;
+            top: 6px;
+            width: 6px;
+            height: 12px;
+            background: #333;
+            border-radius: 2px;
+        }
+        .battery-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #38c172;
+            transition: width 0.3s ease, background-color 0.3s ease;
+        }
+        /* ======================================================================== */
+
+        @media (max-width: 768px) {
+            .header-section {
+                flex-direction: column;
+            }
+            .header-text {
+                margin: 10px 0;
+            }
+            .logo-container {
+                width: auto;
+            }
+            .dashboard-container {
+                flex-direction: column;
+            }
+            .info-section {
+                width: 100%;
+                margin: 10px 0;
+            }
+            .chart-section {
+                width: 100%;
+                margin: 10px 0;
+            }
+            .battery-container {
+                position: static;
+                margin: 10px auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header-section">
+        <div class="logo-container" style="margin-left: 50px;">
+            <img src="/pme_logo.png" alt="Logotipo do PME" style="height: 75px;">
+        </div>
+        <div class="header-text">
+            <h1>Laboratório de Máquinas de Fluxo</h1>
+            <p>Painel de medição de torque em tempo real.</p>
+        </div>
+        <div class="logo-container" style="margin-right: 120px;">
+            <img src="/poli_logo.png" alt="Logotipo da POLI-USP" style="height: 85px;">
+        </div>
+    </div>
+
+    <div class="battery-container">
+        <div class="battery-row">
+            <div class="battery-icon">
+                <div class="battery-fill" id="batteryFill"></div>
+            </div>
+            <span id="batteryPercentage">--%</span>
+        </div>
+        <small id="batteryVoltageDisplay">-- V</small>
+    </div>
+    
+    <div class="dashboard-container">
+        <div class="chart-section">
+            <canvas id="torqueChart"></canvas>
+        </div>
+        
+        <div class="info-section">
+            <div class="info-box">
+                <h2>Torque Instantâneo (N.m)</h2>
+                <div class="value" id="currentTorqueValue">0.00</div>
+            </div>
+            
+            <div class="info-box">
+                <h2>Torque Médio (N.m) - últimos 5 pontos</h2>
+                <div class="value" id="averageTorqueValue">0.00</div>
+            </div>
+            <div class="info-box">
+                <h2>Torque Máximo (N.m) - em módulo</h2>
+                <div class="value" id="maxTorqueValue">0.00</div>
+                <button onclick="resetMaxTorque()">Resetar Máximo</button>
+            </div>
+            
+            <div class="info-box">
+                <h2>Calibração</h2>
+                <div>Fator atual: <b id="currentCalibration">--</b></div>
+                <input type="number" id="calibrationInput" placeholder="Ex: 10000" style="width:100%; margin-top:10px;">
+                <input type="password" id="calibrationPassword" placeholder="Senha" style="width:100%; margin-top:10px;">
+                <button onclick="setCalibration()" style="margin-top:10px;">Aplicar</button>
+            </div>
+        </div>
+    </div>
+    <div class="data-table-section">
+        <h2>Registro de Medições</h2>
+        <div class="data-table-controls">
+            <button onclick="registerCurrent()">Registrar Torque Instantâneo</button>
+            <button onclick="registerAverage()">Registrar Torque Médio</button>
+        </div>
+        <table id="dataTable">
+            <thead>
+                <tr>
+                    <th>Medição</th>
+                    <th>Tipo de medição</th>
+                    <th>Valor do torque (N.m)</th>
+                    <th>Horário de medição (HH:MM:SS)</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('torqueChart').getContext('2d');
+        const currentTorqueDisplay = document.getElementById('currentTorqueValue');
+        const averageTorqueDisplay = document.getElementById('averageTorqueValue');
+        const maxTorqueDisplay = document.getElementById('maxTorqueValue');
+        const dataTableBody = document.querySelector('#dataTable tbody');
+        const maxDataPoints = 20;
+        const averagePoints = 5;
+        let dataLabels = [];
+        let torqueData = [];
+        let maxTorque = 0;
+
+        // === BATERIA - variáveis e elementos ===
+        const batteryFill = document.getElementById('batteryFill');
+        const batteryPercentageDisplay = document.getElementById('batteryPercentage');
+        const batteryVoltageDisplay = document.getElementById('batteryVoltageDisplay');
+        let buffer_adc = [];
+
+        // Constante de calibração da bateria
+        const K = 2.12 * 0.8845;
+
+        const torqueChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dataLabels,
+                datasets: [{
+                    label: 'Torque (N.m)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    data: torqueData,
+                    fill: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        display: true,
+                        title: { display: true, text: 'Tempo (s)' }
+                    },
+                    y: {
+                        display: true,
+                        title: { display: true, text: 'Torque' }
+                    }
+                }
+            }
+        });
+
+        function calculateAverage(dataArray, numPoints) {
+            if (dataArray.length === 0) return 0;
+            const startIndex = Math.max(0, dataArray.length - numPoints);
+            const slice = dataArray.slice(startIndex);
+            const sum = slice.reduce((acc, val) => acc + val, 0);
+            return sum / slice.length;
+        }
+
+        function renumberTable() {
+            const rows = dataTableBody.getElementsByTagName('tr');
+            for (let i = 0; i < rows.length; i++) {
+                rows[i].cells[0].textContent = i + 1;
+            }
+        }
+
+        function formatTime(date) {
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+        }
+        
+        function registerValue(value, type) {
+            const now = new Date();
+            const timeString = formatTime(now);
+            
+            const newRow = dataTableBody.insertRow();
+            const cell1 = newRow.insertCell(0);
+            const cell2 = newRow.insertCell(1);
+            const cell3 = newRow.insertCell(2);
+            const cell4 = newRow.insertCell(3);
+            const cell5 = newRow.insertCell(4);
+            cell1.textContent = dataTableBody.rows.length;
+            cell2.textContent = type;
+            cell3.textContent = `${value.toFixed(2)} N.m`;
+            cell4.textContent = timeString;
+            
+            const deleteBtn = document.createElement('button');
+            deleteBtn.textContent = 'x';
+            deleteBtn.className = 'delete-btn';
+            deleteBtn.onclick = () => {
+                dataTableBody.removeChild(newRow);
+                renumberTable();
+            };
+            cell5.appendChild(deleteBtn);
+        }
+        function registerCurrent() {
+            const currentValue = parseFloat(currentTorqueDisplay.textContent);
+            registerValue(currentValue, 'Instantâneo');
+        }
+        function registerAverage() {
+            const averageValue = parseFloat(averageTorqueDisplay.textContent);
+            registerValue(averageValue, 'Médio');
+        }
+
+        // === FUNÇÃO DE BATERIA ===
+        function avg(arr) {
+            if (arr.length === 0) return 0;
+            let s = 0;
+            for (let x of arr) s += x;
+            return s / arr.length;
+        }
+
+        function updateBattery(vAdc) {
+            buffer_adc.push(vAdc);
+            if (buffer_adc.length > 20) buffer_adc.shift();
+            const vAdcAvg = avg(buffer_adc);
+            const vBat = vAdcAvg * K;
+            batteryVoltageDisplay.textContent = vBat.toFixed(2) + " V";
+
+            const V_EMPTY = 3.30;
+            const V_FULL = 4.20;
+            let pct = 100 * (vBat - V_EMPTY) / (V_FULL - V_EMPTY);
+            pct = Math.max(0, Math.min(100, pct));
+            batteryPercentageDisplay.textContent = Math.round(pct) + "%";
+            batteryFill.style.width = pct + "%";
+
+            if (pct > 60) batteryFill.style.background = "#38c172";
+            else if (pct > 30) batteryFill.style.background = "#ffcc00";
+            else batteryFill.style.background = "#e3342f";
+        }
+
+        function fetchTorqueData() {
+            fetch('/torque')
+                .then(response => {
+                    if (!response.ok) throw new Error('Falha na resposta da rede: ' + response.statusText);
+                    return response.text();
+                })
+                .then(data => {
+                    const torqueValue = parseFloat(data);
+                    if (!isNaN(torqueValue)) {
+                        const now = new Date();
+                        const timeLabel = formatTime(now);
+                        
+                        if (torqueChart.data.labels.length >= maxDataPoints) {
+                            torqueChart.data.labels.shift();
+                            torqueChart.data.datasets[0].data.shift();
+                        }
+                        torqueChart.data.labels.push(timeLabel);
+                        torqueChart.data.datasets[0].data.push(torqueValue);
+                        torqueChart.update();
+                        currentTorqueDisplay.textContent = torqueValue.toFixed(2);
+                        const averageValue = calculateAverage(torqueChart.data.datasets[0].data, averagePoints);
+                        averageTorqueDisplay.textContent = averageValue.toFixed(2);
+                        
+                        const absoluteTorqueValue = Math.abs(torqueValue);
+                        if (absoluteTorqueValue > maxTorque) {
+                            maxTorque = absoluteTorqueValue;
+                            maxTorqueDisplay.textContent = maxTorque.toFixed(2);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao buscar os dados de torque:', error);
+                });
+
+            // === LEITURA DA BATERIA ===
+            fetch("/battery_raw")
+                .then(r => r.text())
+                .then(v => {
+                    const vAdc = parseFloat(v);
+                    if (!isNaN(vAdc)) updateBattery(vAdc);
+                });
+        }
+        
+        function resetMaxTorque() {
+            maxTorque = 0;
+            maxTorqueDisplay.textContent = "0.00";
+        }
+
+        // === CALIBRAÇÃO ===
+        function setCalibration() {
+            const value = document.getElementById("calibrationInput").value;
+            const pass = document.getElementById("calibrationPassword").value;
+            if (!value || !pass) {
+                alert("Preencha valor e senha!");
+                return;
+            }
+            fetch(`/set_calibration?value=${value}&pass=${pass}`)
+                .then(r => r.text())
+                .then(resp => {
+                    alert(resp);
+                    getCalibration();
+                });
+        }
+
+        function getCalibration() {
+            fetch("/get_calibration")
+                .then(r => r.text())
+                .then(v => {
+                    document.getElementById("currentCalibration").textContent = parseFloat(v).toFixed(2);
+                });
+        }
+
+        getCalibration();
+        setInterval(fetchTorqueData, 1000);
+    </script>
+</body>
+</html>
