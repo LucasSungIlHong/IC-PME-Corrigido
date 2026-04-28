@@ -154,7 +154,7 @@ void loop() {
 
     float med = leitura_carga(carga);
     filter_reading(med);
-    torque = med;
+    torque = med/10.8;
 
     float adcV = readAdcVoltage();
 
